@@ -9,7 +9,6 @@ import Foundation
 import HealthKit
 import ModelsR4
 
-
 /// Class that handles the conversion of Apple HealthKit objects to FHIR.Observation types
 open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
     

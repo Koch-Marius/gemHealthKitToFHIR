@@ -12,13 +12,15 @@ let package = Package(
             targets: ["gemHealthKitToFHIR"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/FHIRModels", .upToNextMajor(from: "0.6.1"))
+        .package(url: "https://github.com/apple/FHIRModels.git",
+                    .upToNextMajor(from: "0.6.1"))
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "gemHealthKitToFHIR"),
+                    name: "gemHealthKitToFHIR",
+                    path: "Sources/gemHealthKitToFHIR"),
         .testTarget(
             name: "gemHealthKitToFHIRTests",
             dependencies: [

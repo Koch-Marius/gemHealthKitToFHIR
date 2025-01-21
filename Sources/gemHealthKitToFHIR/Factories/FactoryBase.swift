@@ -43,7 +43,7 @@ open class FactoryBase {
     /// - Throws:
     ///   - FHIRValdationError: Will throw if the Identifier cannot be created.
     open func identifier(system: String, value: String) throws -> Identifier {
-        let json: FHIRJxSON = [Constants.systemKey : system,
+        let json: FHIRJSON = [Constants.systemKey : system,
                               Constants.valueKey : value]
         
         return try Identifier(json: json)

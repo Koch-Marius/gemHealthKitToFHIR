@@ -7,7 +7,7 @@
 
 import Foundation
 import HealthKit
-import ModelsR4
+
 
 public protocol ResourceFactoryProtocol {
     
