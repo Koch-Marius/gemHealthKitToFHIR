@@ -109,9 +109,16 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         
         
         // Set the effective date
-       
-        observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
-        observation.effective = .period(try effectivePeriodfunc(sample: sample))
+        if sample.startDate == sample.endDate {
+            observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
+        }
+        else if sample.startDate != sample.endDate {
+            observation.effective = .period(try effectivePeriodfunc(sample: sample))
+        } else {
+            throw ConversionError.dateConversionError
+        }
+        
+        
         
         // Set the Metadata as json String in a component
         if let metadata = sample.metadata{
@@ -157,8 +164,16 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         // Add the Observation codes (provided by the lookup in the Config).
         observation.code = try self.codeableConcept(objectType: sample.sampleType)
         // Set the effective date
-        observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
-        observation.effective = .period(try effectivePeriodfunc(sample: sample))
+        // Set the effective date
+        if sample.startDate == sample.endDate {
+            observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
+        }
+        else if sample.startDate != sample.endDate {
+            observation.effective = .period(try effectivePeriodfunc(sample: sample))
+        } else {
+            throw ConversionError.dateConversionError
+        }
+    
         // Set the Metadata as json String in a component
         if let metadata = sample.metadata{
             try self.metaComponent(observation: observation, metadata: sample.metadata ?? ["":""], sampleTypeDescription: sample.sampleType.description)
