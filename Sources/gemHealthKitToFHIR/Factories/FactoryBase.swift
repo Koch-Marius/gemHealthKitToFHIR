@@ -12,7 +12,7 @@ open class FactoryBase {
     
     public static let healthKitIdentifierSystemKey = Constants.healthAppBundleId
     
-    internal var conversionMap: [String : [String : FHIRJSON]] = [:]
+    internal var conversionMap: [String : [String : Any]] = [:]
     internal let dateFormatter = ISO8601DateFormatter()
     
     public init() {}
@@ -30,8 +30,9 @@ open class FactoryBase {
         }
         
         dateFormatter.timeZone = timeZone ?? TimeZone.init(secondsFromGMT: 0)
+        let dateString = dateFormatter.string(from: date)
         
-        return DateTime(string: dateFormatter.string(from: date))
+        return try? DateTime(dateString)
     }
     
     /// Creates a FHIR.Identifier with the given system and value
@@ -43,10 +44,11 @@ open class FactoryBase {
     /// - Throws:
     ///   - FHIRValdationError: Will throw if the Identifier cannot be created.
     open func identifier(system: String, value: String) throws -> Identifier {
-        let json: FHIRJSON = [Constants.systemKey : system,
-                              Constants.valueKey : value]
+        var identifier = Identifier()
+        identifier.system = system.asFHIRURI()?.asPrimitive()
+        identifier.value = FHIRString(value).asPrimitive()
         
-        return try Identifier(json: json)
+        return identifier
     }
     
     /// Creates a FHIR.Identifier with the given codeable concept and value
@@ -58,7 +60,7 @@ open class FactoryBase {
     open func identifier(type: CodeableConcept, value: String) -> Identifier {
         let identifier = Identifier()
         identifier.type = type
-        identifier.value = FHIRString(value)
+        identifier.value = FHIRPrimitive(FHIRString(value))
         
         return identifier
     }
@@ -72,11 +74,12 @@ open class FactoryBase {
     /// - Returns: a new FHIR.Coding
     /// - Throws:
     ///   - FHIRValdationError: Will throw if the Coding cannot be created.
-    open func coding(system: String, code: String) throws -> Coding {
-        let json: FHIRJSON = [Constants.systemKey : system,
-                              Constants.codeKey : code]
+    open func coding(system: String, code: String) -> Coding {
+        var coding = Coding()
+        coding.system = system.asFHIRURI()?.asPrimitive()
+        coding.code = FHIRString(code).asPrimitive()
         
-        return try Coding(json: json)
+        return coding
     }
     
     internal func loadConfiguration(configName: String?, bundle: Foundation.Bundle) throws {
@@ -113,7 +116,7 @@ open class FactoryBase {
     
     internal func loadConfiguration(data: Data) throws {
         // Validate that the config is in a valid json format and merge with the default config.
-        if let dictionary = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String : [String : FHIRJSON]] {
+        if let dictionary = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String : [String : Any]] {
             for (key, value) in dictionary {
                 if var existingValue = conversionMap[key] {
                     // There is default conversion data - merge.

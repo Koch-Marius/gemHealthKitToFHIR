@@ -45,7 +45,9 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             // The given type is not currently supported.
             throw ConversionError.unsupportedType(identifier: String(describing: HKObject.self))
         }
-        let observation = Observation()
+        let observation = Observation(
+            code: try self.codeableConcept(objectType: sample.sampleType),
+            status: ObservationStatus.preliminary.asPrimitive())
         
         // Add the Observation codes (provided by the lookup in the Config).
         
@@ -54,7 +56,7 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         if #available(iOS 14.0, *) {
             if let quantitySample = sample as? HKQuantitySample {
                 // The sample is a quantity sample - create a valueQuantity (conversion data provided in the Config).
-                observation.valueQuantity = try self.valueQuantity(quantitySample: quantitySample)
+                observation.value = .quantity(try valueQuantity(quantitySample: quantitySample))
             }
             else if let correlation = sample as? HKCorrelation {
                 // The sample is a correlation - create components with the appropriate values (conversion data provided in the Config).
@@ -62,12 +64,11 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             }
             else if let category = sample as? HKCategorySample{
                 // The sample is a category  - Category samples displayed as codeable concepts
-                
-                observation.valueCodeableConcept = try self.valueCodeableConcept(categorySample: category.sampleType, value: String(category.value))
+                observation.value = .codeableConcept(try self.valueCodeableConcept(categorySample: category.sampleType, value: String(category.value)))
             }
             else if let audio = sample as? HKAudiogramSample{
                 // The sample is a Audiogram - Audiogram samples displayed as Jsons in a String because of 3 dimensions left, right, frequency
-                observation.valueString = try self.valueString(audioSensitivityPoints: audio.sensitivityPoints)
+                observation.value = .string(try self.valueString(audioSensitivityPoints: audio.sensitivityPoints).asPrimitive())
             }
             else if let workout = sample as? HKWorkout{
                 // The sample is a Workout
@@ -86,7 +87,7 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             // Fallback on earlier versions
             if let quantitySample = sample as? HKQuantitySample {
                 // The sample is a quantity sample - create a valueQuantity (conversion data provided in the Config).
-                observation.valueQuantity = try self.valueQuantity(quantitySample: quantitySample)
+                observation.value = .quantity(try self.valueQuantity(quantitySample: quantitySample))
             }
             else if let correlation = sample as? HKCorrelation {
                 // The sample is a correlation - create components with the appropriate values (conversion data provided in the Config).
@@ -94,8 +95,7 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             }
             else if let category = sample as? HKCategorySample{
                 // The sample is a category  - Category samples displayed as codeable concepts
-                
-                observation.valueCodeableConcept = try self.valueCodeableConcept(categorySample: category.sampleType, value: String(category.value))
+                observation.value = .codeableConcept(try self.valueCodeableConcept(categorySample: category.sampleType, value: String(category.value)))
             }
             else
             {
@@ -109,9 +109,9 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         
         
         // Set the effective date
-        let effective = try self.effective(sample: sample)
-        observation.effectiveDateTime = effective as? DateTime ?? observation.effectiveDateTime
-        observation.effectivePeriod = effective as? Period ?? observation.effectivePeriod
+       
+        observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
+        observation.effective = .period(try effectivePeriodfunc(sample: sample))
         
         // Set the Metadata as json String in a component
         if let metadata = sample.metadata{
@@ -135,8 +135,9 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             // The given type is not currently supported.
             throw ConversionError.unsupportedType(identifier: String(describing: HKObject.self))
         }
-        
-        let observation = Observation()
+        let observation = Observation(
+            code: try self.codeableConcept(objectType: sample.sampleType),
+            status: ObservationStatus.preliminary.asPrimitive())
         if #available(iOS 14.0, *) {
             if let ecg = sample as? HKElectrocardiogram{
                 // ECG processing into components.
@@ -156,9 +157,8 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         // Add the Observation codes (provided by the lookup in the Config).
         observation.code = try self.codeableConcept(objectType: sample.sampleType)
         // Set the effective date
-        let effective = try self.effective(sample: sample)
-        observation.effectiveDateTime = effective as? DateTime ?? observation.effectiveDateTime
-        observation.effectivePeriod = effective as? Period ?? observation.effectivePeriod
+        observation.effective = .dateTime(try effectiveDateTimefunc(sample: sample))
+        observation.effective = .period(try effectivePeriodfunc(sample: sample))
         // Set the Metadata as json String in a component
         if let metadata = sample.metadata{
             try self.metaComponent(observation: observation, metadata: sample.metadata ?? ["":""], sampleTypeDescription: sample.sampleType.description)
@@ -170,27 +170,28 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
     /// - Parameter object: object to parse HKWheelchairUse, HKBloodTypeObject, HKFitpatrickSkinType
     /// - Returns: FHIR observation
     open func observation(object: NSObject) throws -> Observation{
-        let observation = Observation()
+        let observation = Observation(
+            code: try self.codeableConcept(type: "HKCharacteristicTypeIdentifier", subType: "wheelchairUse"),
+            status: ObservationStatus.preliminary.asPrimitive())
         if let wheelChair = object as? HKWheelchairUseObject{
             // Add the Observation codes (provided by the lookup in the Config).
-            observation.code = try self.codeableConcept(type: "HKCharacteristicTypeIdentifier", subType: "wheelchairUse")
-            observation.valueCodeableConcept = try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
-                                                                             value: String(wheelChair.wheelchairUse.rawValue),
-                                                                             subType: "wheelchairUse")
+            observation.value = .codeableConcept(try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
+                                                                               value: String(wheelChair.wheelchairUse.rawValue),
+                                                                               subType: "wheelchairUse"))
         }
         else if let bloodType = object as? HKBloodTypeObject{
             // Add the Observation codes (provided by the lookup in the Config).
             observation.code = try self.codeableConcept(type: "HKCharacteristicTypeIdentifier", subType: "bloodType")
-            observation.valueCodeableConcept = try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
-                                                                             value: String(bloodType.bloodType.rawValue),
-                                                                             subType: "bloodType")
+            observation.value = .codeableConcept(try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
+                                                                               value: String(bloodType.bloodType.rawValue),
+                                                                               subType: "bloodType"))
         }
         else if let fitzpatrickSkinType = object as? HKFitzpatrickSkinTypeObject{
             // Add the Observation codes (provided by the lookup in the Config).
             observation.code = try self.codeableConcept(type: "HKCharacteristicTypeIdentifier", subType: "fitzpatrickSkinType")
-            observation.valueCodeableConcept = try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
-                                                                             value: String(fitzpatrickSkinType.skinType.rawValue),
-                                                                             subType: "fitzpatrickSkinType")
+            observation.value = .codeableConcept(try self.valueCodeableConcept(type: "HKCharacteristicTypeIdentifier",
+                                                                               value: String(fitzpatrickSkinType.skinType.rawValue),
+                                                                               subType: "fitzpatrickSkinType"))
         }
         else{
             // The sample type is not currently supported.
@@ -224,9 +225,16 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         guard let json = conversionValues[Constants.codeKey] else {
             throw ConversionError.requiredConversionValueMissing(key: Constants.codeKey)
         }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []) else {
+            throw ConversionError.invalidConversionData
+        }
+        
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
-        var ret_codeableConcept = try CodeableConcept(json : json)
-        ret_codeableConcept.text = FHIRString(identifier)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .useDefaultKeys
+        let codeableConcept = try decoder.decode(CodeableConcept.self, from: jsonData)
+        var ret_codeableConcept = codeableConcept
+        ret_codeableConcept.text = FHIRString(identifier).asPrimitive()
         return ret_codeableConcept
     }
     
@@ -249,9 +257,16 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         guard let json = conversionValues[Constants.codeKey] else {
             throw ConversionError.requiredConversionValueMissing(key: Constants.codeKey)
         }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []) else {
+            throw ConversionError.invalidConversionData
+        }
+        
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
-        var ret_codeableConcept = try CodeableConcept(json : json)
-        ret_codeableConcept.text = FHIRString(identifier)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .useDefaultKeys
+        let codeableConcept = try decoder.decode(CodeableConcept.self, from: jsonData)
+        var ret_codeableConcept = codeableConcept
+        ret_codeableConcept.text = FHIRString(identifier).asPrimitive()
         return ret_codeableConcept
     }
     
@@ -276,26 +291,35 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         guard let json = conversionValues[Constants.codeKey] else {
             throw ConversionError.requiredConversionValueMissing(key: Constants.codeKey)
         }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []) else {
+            throw ConversionError.invalidConversionData
+        }
+        
+        // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .useDefaultKeys
+        
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
         // extract coding based on default config.
-        let tmp_codeableConcept = try CodeableConcept(json : json)
+        
+        
+        let tmp_codeableConcept = try decoder.decode(CodeableConcept.self, from: jsonData)
         var ret_coding = Coding()
         for tmp_coding in tmp_codeableConcept.coding ?? []{
             if let tmp_code = tmp_coding.code{
-                if tmp_code.string == value{
+                if let primitiveString = tmp_code.value, primitiveString == value{
                     ret_coding = tmp_coding
                 }
             }
         }
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
-        var ret_codeableConcept = try CodeableConcept()
+        
+        var ret_codeableConcept = CodeableConcept()
         // Assign value based concept as value of the codeable concept.
-        ret_codeableConcept.text = FHIRString(identifier)
+        ret_codeableConcept.text = FHIRString(identifier).asPrimitive()
         ret_codeableConcept.coding = [Coding]()
         ret_codeableConcept.coding?.append(ret_coding)
         return ret_codeableConcept
-        
-       
     }
     
     /// Creates a FHIR.CodeableConcept for a given HKObjectType
@@ -319,25 +343,30 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         guard let json = conversionValues[Constants.codeKey] else {
             throw ConversionError.requiredConversionValueMissing(key: Constants.codeKey)
         }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []) else {
+            throw ConversionError.invalidConversionData
+        }
+        
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
         // extract coding based on default config.
-        let tmp_codeableConcept = try CodeableConcept(json : json)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .useDefaultKeys
+        let tmp_codeableConcept = try decoder.decode(CodeableConcept.self, from: jsonData)
         var ret_coding = Coding()
         for tmp_coding in tmp_codeableConcept.coding ?? []{
             if let tmp_code = tmp_coding.code{
-                if tmp_code.string == value{
+                if let primitiveString = tmp_code.value, primitiveString == value{
                     ret_coding = tmp_coding
                 }
             }
         }
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
-        var ret_codeableConcept = try CodeableConcept()
+        var ret_codeableConcept = CodeableConcept()
         // Assign value based concept as value of the codeable concept.
-        ret_codeableConcept.text = FHIRString(identifier)
+        ret_codeableConcept.text = FHIRString(identifier).asPrimitive()
         ret_codeableConcept.coding = [Coding]()
         ret_codeableConcept.coding?.append(ret_coding)
         return ret_codeableConcept
-        
        
     }
 
@@ -365,9 +394,10 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         }
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
         let defaultUnit = quantitySample.quantity.value(forKey: Constants.unitKey) as! HKUnit
-        json[Constants.valueKey] = quantitySample.quantity.doubleValue(for: defaultUnit)
-        json[Constants.unitKey] = defaultUnit.unitString
-        return try Quantity(json: json)
+        let retQuantity = Quantity()
+        retQuantity.value = quantitySample.quantity.doubleValue(for: defaultUnit).asFHIRDecimalPrimitive()
+        retQuantity.unit = defaultUnit.unitString.asFHIRStringPrimitive()
+        return try retQuantity
     }
     
     /// Creates a FHIR.Quantity for the given HKQuantity
@@ -393,9 +423,10 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         }
         // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
         let defaultUnit = quantity.value(forKey: Constants.unitKey) as! HKUnit
-        json[Constants.valueKey] = quantity.doubleValue(for: defaultUnit)
-        json[Constants.unitKey] = defaultUnit.unitString
-        return try Quantity(json: json)
+        let retQuantity = Quantity()
+        retQuantity.value = quantity.doubleValue(for: defaultUnit).asFHIRDecimalPrimitive()
+        retQuantity.unit = defaultUnit.unitString.asFHIRStringPrimitive()
+        return try retQuantity
     }
     
     /// Creates a FHIR.Quantity for the given double value
@@ -415,12 +446,21 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         guard let conversionValues = conversionMap[identifier] else {
             throw ConversionError.conversionNotDefinedForType(identifier: identifier)
         }
-        guard var json = conversionValues[Constants.valueQuantityKey] else {
+        guard var json = conversionValues[Constants.valueQuantityKey] as? [String: Any] else {
             throw ConversionError.requiredConversionValueMissing(key: Constants.valueQuantityKey)
         }
-        // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
         json[Constants.valueKey] = value
-        return try Quantity(json: json)
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: json, options: []) else {
+            throw ConversionError.invalidConversionData
+        }
+        
+        // handle object Type identifier as text for Codeable Concept in order to identify concept of apple healthKit
+        
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .useDefaultKeys
+        let retQuantity = try decoder.decode(Quantity.self, from: jsonData)
+        
+        return retQuantity
     }
     
     
@@ -466,6 +506,7 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             let audigramsensitivityJsonObject = try JSONSerialization.data(withJSONObject: array, options: [])
             // Convert NSData to String
             let audiogramsensitivityJsonObjectString = String(data: audigramsensitivityJsonObject, encoding: String.Encoding.utf8) ?? ""
+            
             return FHIRString(audiogramsensitivityJsonObjectString)
         }
     }
@@ -537,7 +578,7 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
             if let quantitySample = sample as? HKQuantitySample {
                 let codeableConcept = try self.codeableConcept(objectType: quantitySample.sampleType)
                 let component = ObservationComponent(code: codeableConcept)
-                component.valueQuantity = try valueQuantity(quantitySample: quantitySample)
+                component.value = .quantity(try valueQuantity(quantitySample: quantitySample))
                 components.append(component)
             }
             else
@@ -564,57 +605,50 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
 
         if let symptomsStatus = ecg.symptomsStatus as? HKElectrocardiogram.SymptomsStatus{
             // create Component based on symptomsStatus
-            var component = ObservationComponent()
-            // set code of component
-            component.code = try self.codeableConcept(objectType: ecg.sampleType, subType: "symptomsStatus")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: ecg.sampleType, subType: "symptomsStatus"))
             // set value of component
-            component.valueCodeableConcept = try self.valueCodeableConcept(categorySample: ecg.sampleType, value: String(symptomsStatus.rawValue), subType: "symptomsStatus")
+            component.value = .codeableConcept(try self.valueCodeableConcept(categorySample: ecg.sampleType, value: String(symptomsStatus.rawValue), subType: "symptomsStatus"))
             // append component to components
             components.append(component)
         }
         if let classification = ecg.classification as? HKElectrocardiogram.Classification{
             // create Component based on classification
-            var component = ObservationComponent()
-            // set code of component
-            component.code = try self.codeableConcept(objectType: ecg.sampleType, subType: "classification")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: ecg.sampleType, subType: "classification"))
             // set value of component
-            component.valueCodeableConcept = try self.valueCodeableConcept(categorySample: ecg.sampleType, value: String(classification.rawValue), subType: "classification")
+            component.value = .codeableConcept(try self.valueCodeableConcept(categorySample: ecg.sampleType, value: String(classification.rawValue), subType: "classification"))
             // append component to components
             components.append(component)
         }
         if let samplingFrequency = ecg.samplingFrequency{
             // Create Component based on sampling frequency and measurements
             // period = 1/samplingFrequency * 1000
-            var component = ObservationComponent()
-            // set code of component
-            component.code = try self.codeableConcept(objectType: ecg.sampleType, subType: "measurements")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: ecg.sampleType, subType: "measurements"))
             let samplingFrequencyUnit = samplingFrequency.value(forKey: Constants.unitKey) as! HKUnit
-            var valueSampledData = SampledData()
+            
             var origin = Quantity()
-            origin.value = 0
-            valueSampledData.origin = origin
-            valueSampledData.dimensions = FHIRInteger("1")
-            valueSampledData.data = FHIRString(measurements)
+            origin.value = FHIRDecimal(0).asPrimitive()
             let period = ((1/samplingFrequency.doubleValue(for: samplingFrequencyUnit))*1000)
-            valueSampledData.period = FHIRDecimal(String(period))
-            component.valueSampledData = valueSampledData
+            var valueSampledData = SampledData(
+                dimensions: FHIRPositiveInteger(1).asPrimitive(),
+                origin: origin,
+                period: FHIRDecimal(Decimal(period)).asPrimitive())
+            
+            valueSampledData.data = FHIRString(measurements).asPrimitive()
+            component.value = .sampledData(valueSampledData)
             components.append(component)
             
         }
         if let averageHeartRate = ecg.averageHeartRate{
             // create Component based on average heart rate
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: ecg.sampleType, subType: "averageHeartRate")
+            var component = ModelsR4.ObservationComponent(code: try self.codeableConcept(objectType: ecg.sampleType, subType: "averageHeartRate"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(quantity: averageHeartRate,
-                                                             sampleType: ecg.sampleType,
-                                                             subType: "averageHeartRate")
+            component.value = .quantity(try valueQuantity(quantity: averageHeartRate,
+                                                      sampleType: ecg.sampleType,
+                                                      subType: "averageHeartRate"))
             // append component to components
             components.append(component)
         }
-     
-        
         return components
     }
     
@@ -631,69 +665,63 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
         
         if let workoutEvents = workout.workoutEvents as? [HKWorkoutEvent]{
             // create component based on HKWorkoutEvent array - array will be json string.
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "workoutEvents")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "workoutEvents"))
             // set value of component
-            component.valueString = try self.valueString(workoutEvents: workoutEvents)
+            component.value = .string(try self.valueString(workoutEvents: workoutEvents).asPrimitive())
             // append component to components
             components.append(component)
         }
         if let duration = workout.duration as? TimeInterval{
             // duration of Workout
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "duration")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "duration"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(value: duration, sampleType: workout.sampleType, subType: "duration")
+            component.value = .quantity(try self.valueQuantity(value: duration, sampleType: workout.sampleType, subType: "duration"))
             // append component to components
             components.append(component)
         }
         if let totalDistance = workout.totalDistance as? HKQuantity{
             // total distance of Workout
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "totalDistance")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "totalDistance"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(quantity: totalDistance,
-                                                             sampleType: workout.sampleType,
-                                                             subType: "totalDistance")
+            component.value = .quantity(try self.valueQuantity(quantity: totalDistance,
+                                                               sampleType: workout.sampleType,
+                                                               subType: "totalDistance"))
             // append component to components
             components.append(component)
         }
         if let totalEnergyBurned = workout.totalEnergyBurned as? HKQuantity{
             // total energy burned of Workout
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "totalEnergyBurned")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "totalEnergyBurned"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(quantity: totalEnergyBurned,
-                                                             sampleType: workout.sampleType,
-                                                             subType: "totalEnergyBurned")
+            component.value = .quantity(try self.valueQuantity(quantity: totalEnergyBurned,
+                                                               sampleType: workout.sampleType,
+                                                               subType: "totalEnergyBurned"))
             // append component to components
             components.append(component)
         }
         if let totalFlightsClimbed = workout.totalFlightsClimbed as? HKQuantity{
             // total flights climbed of Workout
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "totalFlightsClimbed")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "totalFlightsClimbed"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(quantity: totalFlightsClimbed,
-                                                             sampleType: workout.sampleType,
-                                                             subType: "totalFlightsClimbed")
+            component.value = .quantity(try self.valueQuantity(quantity: totalFlightsClimbed,
+                                                               sampleType: workout.sampleType,
+                                                               subType: "totalFlightsClimbed"))
             // append component to components
             components.append(component)
         }
         if let totalSwimmingStrokeCount = workout.totalSwimmingStrokeCount as? HKQuantity{
             // total swimming strokes of Workout
-            var component = ObservationComponent()
             // set code of component
-            component.code = try self.codeableConcept(objectType: workout.sampleType, subType: "totalSwimmingStrokeCount")
+            var component = ObservationComponent(code: try self.codeableConcept(objectType: workout.sampleType, subType: "totalSwimmingStrokeCount"))
             // set value of component
-            component.valueQuantity = try self.valueQuantity(quantity: totalSwimmingStrokeCount,
-                                                             sampleType: workout.sampleType,
-                                                             subType: "totalSwimmingStrokeCount")
+            component.value = .quantity(try self.valueQuantity(quantity: totalSwimmingStrokeCount,
+                                                               sampleType: workout.sampleType,
+                                                               subType: "totalSwimmingStrokeCount"))
             // append component to components
             components.append(component)
         }
@@ -709,18 +737,17 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
     open func metaComponent(observation: Observation , metadata: [String : Any], sampleTypeDescription: String) throws{
         
         // craft codeableConcept
-        var codeableConcept = FHIR.CodeableConcept()
+        var codeableConcept = CodeableConcept()
         let system = Constants.healthAppBundleId + "." + sampleTypeDescription + ".metadata"
-        var coding = FHIR.Coding()
-        coding.display = FHIRString("Metadata")
-        coding.system = FHIRURL(system)
+        var coding = Coding()
+        coding.display = "Metadata".asFHIRStringPrimitive()
+        coding.system = system.asFHIRURIPrimitive()
         codeableConcept.coding = [Coding]()
         codeableConcept.coding?.append(coding)
-        codeableConcept.text = FHIRString(sampleTypeDescription + ".metadata")
-        var obsComponent = ObservationComponent()
-        obsComponent.valueString = FHIRString(metadata.description ?? "")
+        codeableConcept.text = (sampleTypeDescription + ".metadata").asFHIRStringPrimitive()
+        var obsComponent = ObservationComponent(code: codeableConcept)
+        obsComponent.value = .string(metadata.description.asFHIRStringPrimitive())
         // add everything together
-        obsComponent.code = codeableConcept
         if var components = observation.component as? [ObservationComponent]{
             components.append(obsComponent)
             observation.component = components
@@ -735,28 +762,41 @@ open class ObservationFactory : FactoryBase, ResourceFactoryProtocol {
     /// Creates a FHIR.DateTime if the start and end dates of the sample are the same or a FHIR.Period if they are different.
     ///
     /// - Parameter sample: A HealthKit HKSample
-    /// - Returns: A new FHIR.DateTime or a FHIR.Period
+    /// - Returns: A new Period
     /// - Throws:
     ///   - ConversionError: Will throw if the Date cannot be converted to either a FHIR.DateTime or a FHIR.Period
-    open func effective(sample: HKSample) throws -> Any {
+    open func effectivePeriodfunc(sample: HKSample) throws -> Period {
         let timeZoneString = sample.metadata?[HKMetadataKeyTimeZone] as? String
-        
-        if (sample.startDate == sample.endDate),
-            let dateTime = dateTime(date: sample.startDate, timeZoneString: timeZoneString) {
-                return dateTime
-        }
         
         if let start = dateTime(date: sample.startDate, timeZoneString: timeZoneString),
             let end = dateTime(date: sample.endDate, timeZoneString: timeZoneString) {
             let period = Period()
-            period.start = start
-            period.end = end
+            period.start = start.asPrimitive()
+            period.end = end.asPrimitive()
             
             return period
         }
         
         throw ConversionError.dateConversionError
     }
+                                          
+    /// Creates a FHIR.DateTime if the start and end dates of the sample are the same or a FHIR.Period if they are different.
+    ///
+    /// - Parameter sample: A HealthKit HKSample
+    /// - Returns: A new FHIRPrimitive<DateTime>
+    /// - Throws:
+    ///   - ConversionError: Will throw if the Date cannot be converted to either a FHIR.DateTime or a FHIR.Period
+    open func effectiveDateTimefunc(sample: HKSample) throws -> FHIRPrimitive<DateTime> {
+        let timeZoneString = sample.metadata?[HKMetadataKeyTimeZone] as? String
+            
+        if (sample.startDate == sample.endDate),
+            let dateTime = dateTime(date: sample.startDate, timeZoneString: timeZoneString)?.asPrimitive() {
+            return dateTime
+        }
+            
+        throw ConversionError.dateConversionError
+    }
+                                          
     
     private func loadDefaultConfiguration() throws {
         do {

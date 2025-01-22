@@ -14,4 +14,5 @@ public enum ConversionError : Error
     case unsupportedType(identifier: String)
     case dateConversionError
     case incorrectTypeForFactory
+    case invalidConversionData
 }

@@ -35,12 +35,12 @@ open class DeviceFactory : FactoryBase, ResourceFactoryProtocol {
         
         // Add the manufacturer.
         if let manufacturer = object.device?.manufacturer {
-            device.manufacturer = FHIRString(manufacturer)
+            device.manufacturer = FHIRString(manufacturer).asPrimitive()
         }
         
         // Add the model.
         if let model = object.device?.model {
-            device.modelNumber = FHIRString(model)
+            device.modelNumber = FHIRString(model).asPrimitive()
         }
         
         // Add the UDI if it exists.
@@ -65,8 +65,8 @@ open class DeviceFactory : FactoryBase, ResourceFactoryProtocol {
         
         if let udiDeviceIdentifier = object.device?.udiDeviceIdentifier {
             let udiDeviceCarrier = DeviceUdiCarrier()
-            udiDeviceCarrier.entryType = .selfReported
-            udiDeviceCarrier.deviceIdentifier = FHIRString(udiDeviceIdentifier)
+            udiDeviceCarrier.entryType = UDIEntryType.selfReported.asPrimitive()
+            udiDeviceCarrier.deviceIdentifier = FHIRString(udiDeviceIdentifier).asPrimitive()
             udiCarrier.append(udiDeviceCarrier)
             
             device.udiCarrier = udiCarrier
@@ -117,13 +117,13 @@ open class DeviceFactory : FactoryBase, ResourceFactoryProtocol {
         var deviceNames = device.deviceName ?? [DeviceDeviceName]()
         
         // Add the name from the source.
-        deviceNames.append(DeviceDeviceName(name: FHIRString(object.sourceRevision.source.name), type: .userFriendlyName))
+        deviceNames.append(DeviceDeviceName(name: FHIRString(object.sourceRevision.source.name).asPrimitive(), type: FHIRPrimitive(DeviceNameType.userFriendlyName)))
         
         // Add the name from the device.
         if let name = object.device?.name {
-            deviceNames.append(DeviceDeviceName(name: FHIRString(name), type: .modelName))
+            deviceNames.append(DeviceDeviceName(name: FHIRPrimitive(FHIRString(name)), type: DeviceNameType.modelName.asPrimitive()))
         }
-        
+    
         device.deviceName = deviceNames
     }
     
@@ -138,10 +138,10 @@ open class DeviceFactory : FactoryBase, ResourceFactoryProtocol {
     /// - Throws:
     ///   - FHIRValdationError: Will throw if the DeviceVersion cannot be created.
     open func deviceVersion(version: String, system: String, code: String) throws -> DeviceVersion {
-        let deviceVersion = DeviceVersion()
+        let deviceVersion = DeviceVersion(value: FHIRString(version).asPrimitive())
+       // let deviceVersion = DeviceVersion()
         deviceVersion.type = CodeableConcept()
         deviceVersion.type?.coding = [try coding(system: Constants.hkObjectSystemValue, code: code)]
-        deviceVersion.value = FHIRString(version)
         
         return deviceVersion
     }
