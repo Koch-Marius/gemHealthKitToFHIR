@@ -96,7 +96,7 @@ open class FactoryBase {
             }
             
             // Get the filepath for the config.
-            if let path = bundle.path(forResource: configName, ofType: Constants.configFileExtension) {
+            if let path = bundle.path(forResource: configName, ofType: Constants.configFileExtension, inDirectory: "Configuration") {
                 do {
                     // Initialize a data object with the contents of the file.
                     let data = try Data(contentsOf: URL.init(fileURLWithPath: path))
